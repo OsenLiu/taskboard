@@ -2,11 +2,13 @@ import { useState } from "react";
 import { X, Trash2, CheckCircle2, Circle, Pencil, Eye } from "lucide-react";
 import Markdown from "react-markdown";
 import { api, type Ticket, type Project, type Team, type Subtask } from "../api/client";
+import { useAIModels } from "../hooks/useAIModels";
 
-const STATUSES = ["todo", "in_progress", "done"];
+const STATUSES = ["backlog", "todo", "in_progress", "done"];
 const PRIORITIES = ["urgent", "high", "medium", "low"];
 
 const STATUS_LABELS: Record<string, string> = {
+  backlog: "Backlog",
   todo: "Todo",
   in_progress: "In Progress",
   done: "Done",
@@ -27,10 +29,12 @@ export default function TicketPanel({
   onUpdate: (id: string, data: Partial<Ticket>) => void;
   onDelete: (id: string) => void;
 }) {
+  const aiModels = useAIModels();
   const [title, setTitle] = useState(ticket.title);
   const [description, setDescription] = useState(ticket.description);
   const [status, setStatus] = useState(ticket.status);
   const [priority, setPriority] = useState(ticket.priority);
+  const [aiModel, setAIModel] = useState(ticket.aiModel || "");
   const [dueDate, setDueDate] = useState(ticket.dueDate || "");
   const [teamId, setTeamId] = useState(ticket.teamId || "");
   const [subtasks, setSubtasks] = useState<Subtask[]>(ticket.subtasks || []);
@@ -46,6 +50,7 @@ export default function TicketPanel({
       description,
       status,
       priority,
+      aiModel: aiModel.trim(),
       dueDate: dueDate || undefined,
       teamId: teamId || undefined,
     });
@@ -239,6 +244,29 @@ export default function TicketPanel({
               <div className="text-sm text-slate-400 px-3 py-2">
                 {projects.find((p) => p.id === ticket.projectId)?.name || "—"}
               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                AI Model
+              </label>
+              <select
+                value={aiModel}
+                onChange={(e) => {
+                  setAIModel(e.target.value);
+                  markDirty();
+                }}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Use global setting</option>
+                {aiModel && !aiModels.some((option) => option.id === aiModel) && (
+                  <option value={aiModel}>{aiModel} (saved)</option>
+                )}
+                {aiModels.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

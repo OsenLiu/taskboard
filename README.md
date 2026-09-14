@@ -66,6 +66,17 @@ taskboard team create "Backend"
 taskboard team list
 ```
 
+### AI Automation Settings
+
+Open **Settings** in the web UI to set the daily AI credit limit and Copilot model used by the scheduled Taskboard agent. The minimum is 30 credits. Use `auto` or a model identifier accepted by Copilot CLI. The agent reads these persisted settings before starting its daily Copilot session.
+
+The value can also be inspected from the CLI:
+
+```bash
+taskboard settings get ai_credit_limit
+taskboard settings get ai_model
+```
+
 ### MCP Server (for AI assistants)
 
 ```bash

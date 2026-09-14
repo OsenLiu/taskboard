@@ -42,10 +42,34 @@ func ticketCommands() *cobra.Command {
 		},
 	}
 	listCmd.Flags().StringVar(&projectID, "project", "", "filter by project ID")
-	listCmd.Flags().StringVar(&status, "status", "", "filter by status (todo|in_progress|done)")
+	listCmd.Flags().StringVar(&status, "status", "", "filter by status (backlog|todo|in_progress|done)")
 	listCmd.Flags().StringVar(&priority, "priority", "", "filter by priority (urgent|high|medium|low)")
 
-	var createProject, createPriority, createDue, createTeam string
+	nextCmd := &cobra.Command{
+		Use:   "next",
+		Short: "Print the next actionable ticket for AI automation",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := openStore()
+			if err != nil {
+				return err
+			}
+			ticket, err := store.NextActionableTicket()
+			if err != nil {
+				return err
+			}
+			if ticket == nil {
+				return nil
+			}
+			model := ""
+			if ticket.AIModel != nil {
+				model = *ticket.AIModel
+			}
+			fmt.Printf("%s\t%s\n", ticket.ID, model)
+			return nil
+		},
+	}
+
+	var createProject, createPriority, createDue, createTeam, createAIModel string
 	createCmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a new ticket",
@@ -66,6 +90,9 @@ func ticketCommands() *cobra.Command {
 			if createTeam != "" {
 				req.TeamID = &createTeam
 			}
+			if createAIModel != "" {
+				req.AIModel = &createAIModel
+			}
 			t, err := store.CreateTicket(req)
 			if err != nil {
 				return err
@@ -81,6 +108,7 @@ func ticketCommands() *cobra.Command {
 	createCmd.Flags().StringVar(&createPriority, "priority", "medium", "priority (urgent|high|medium|low)")
 	createCmd.Flags().StringVar(&createDue, "due", "", "due date (YYYY-MM-DD)")
 	createCmd.Flags().StringVar(&createTeam, "team", "", "team ID")
+	createCmd.Flags().StringVar(&createAIModel, "ai-model", "", "Copilot model override")
 
 	var moveStatus string
 	moveCmd := &cobra.Command{
@@ -103,7 +131,7 @@ func ticketCommands() *cobra.Command {
 			return nil
 		},
 	}
-	moveCmd.Flags().StringVar(&moveStatus, "status", "", "target status (required)")
+	moveCmd.Flags().StringVar(&moveStatus, "status", "", "target status (backlog|todo|in_progress|done; required)")
 	moveCmd.MarkFlagRequired("status")
 
 	deleteCmd := &cobra.Command{
@@ -123,6 +151,6 @@ func ticketCommands() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(listCmd, createCmd, moveCmd, deleteCmd)
+	cmd.AddCommand(listCmd, nextCmd, createCmd, moveCmd, deleteCmd)
 	return cmd
 }

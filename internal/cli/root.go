@@ -127,7 +127,43 @@ func NewRootCmd(webFS fs.FS) *cobra.Command {
 	}
 	clearCmd.Flags().BoolP("force", "f", false, "skip confirmation prompt")
 
-	root.AddCommand(startCmd, stopCmd, mcpCmd, clearCmd)
+	settingsCmd := &cobra.Command{Use: "settings", Short: "Manage Taskboard settings"}
+	getSettingCmd := &cobra.Command{
+		Use:   "get [key]",
+		Short: "Get a setting value",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := openStore()
+			if err != nil {
+				return err
+			}
+			setting, err := store.GetSetting(args[0])
+			if err != nil {
+				return err
+			}
+			if setting == nil {
+				return fmt.Errorf("setting not found: %s", args[0])
+			}
+			fmt.Println(setting.Value)
+			return nil
+		},
+	}
+	setSettingCmd := &cobra.Command{
+		Use:   "set [key] [value]",
+		Short: "Set a setting value",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			store, err := openStore()
+			if err != nil {
+				return err
+			}
+			_, err = store.UpdateSetting(args[0], args[1])
+			return err
+		},
+	}
+	settingsCmd.AddCommand(getSettingCmd, setSettingCmd)
+
+	root.AddCommand(startCmd, stopCmd, mcpCmd, clearCmd, settingsCmd)
 	root.AddCommand(projectCommands())
 	root.AddCommand(teamCommands())
 	root.AddCommand(ticketCommands())

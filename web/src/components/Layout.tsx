@@ -7,6 +7,7 @@ import {
   Ticket,
   Zap,
   TerminalSquare,
+  Settings,
 } from "lucide-react";
 import TerminalPanel from "./TerminalPanel";
 
@@ -15,6 +16,7 @@ const navItems = [
   { to: "/projects", icon: FolderKanban, label: "Projects" },
   { to: "/teams", icon: Users, label: "Teams" },
   { to: "/tickets", icon: Ticket, label: "Tickets" },
+  { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
 export default function Layout() {

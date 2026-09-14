@@ -1,13 +1,17 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/go-chi/chi/v5"
@@ -19,8 +23,20 @@ import (
 )
 
 type Server struct {
-	store  *db.Store
-	router chi.Router
+	store          *db.Store
+	router         chi.Router
+	aiModelsMu     sync.Mutex
+	aiModelCatalog *aiModelCatalog
+}
+
+type aiModel struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type aiModelCatalog struct {
+	Models  []aiModel `json:"models"`
+	Current string    `json:"current"`
 }
 
 func New(store *db.Store, webFS fs.FS) *Server {
@@ -90,6 +106,11 @@ func (s *Server) setupRoutes(webFS fs.FS) {
 		})
 
 		r.Get("/board", s.getBoard)
+		r.Get("/settings/ai-credit-limit", s.getAICreditLimit)
+		r.Put("/settings/ai-credit-limit", s.updateAICreditLimit)
+		r.Get("/settings/ai-model", s.getAIModel)
+		r.Put("/settings/ai-model", s.updateAIModel)
+		r.Get("/settings/ai-models", s.listAIModels)
 		r.Get("/terminal/ws", s.handleTerminalWS)
 	})
 
@@ -104,6 +125,139 @@ func (s *Server) setupRoutes(webFS fs.FS) {
 	}
 
 	s.router = r
+}
+
+func (s *Server) getAICreditLimit(w http.ResponseWriter, r *http.Request) {
+	setting, err := s.store.GetSetting("ai_credit_limit")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, setting)
+}
+
+func (s *Server) updateAICreditLimit(w http.ResponseWriter, r *http.Request) {
+	var req models.UpdateSettingRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	limit, err := strconv.Atoi(req.Value)
+	if err != nil || limit < 30 {
+		writeError(w, http.StatusBadRequest, "AI credit limit must be an integer of at least 30")
+		return
+	}
+	setting, err := s.store.UpdateSetting("ai_credit_limit", strconv.Itoa(limit))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, setting)
+}
+
+func (s *Server) getAIModel(w http.ResponseWriter, r *http.Request) {
+	setting, err := s.store.GetSetting("ai_model")
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, setting)
+}
+
+func (s *Server) updateAIModel(w http.ResponseWriter, r *http.Request) {
+	var req models.UpdateSettingRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	model := strings.TrimSpace(req.Value)
+	if model == "" {
+		writeError(w, http.StatusBadRequest, "AI model must not be empty")
+		return
+	}
+	setting, err := s.store.UpdateSetting("ai_model", model)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, setting)
+}
+
+func (s *Server) listAIModels(w http.ResponseWriter, r *http.Request) {
+	s.aiModelsMu.Lock()
+	defer s.aiModelsMu.Unlock()
+	if s.aiModelCatalog != nil {
+		writeJSON(w, http.StatusOK, s.aiModelCatalog)
+		return
+	}
+
+	var lastErr error
+	for range 2 {
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		output, err := exec.CommandContext(ctx, "copilot", "--silent", "-p", "/model --list --json").Output()
+		cancel()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		catalog, err := parseAIModelCatalog(output)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		s.aiModelCatalog = catalog
+		writeJSON(w, http.StatusOK, catalog)
+		return
+	}
+	writeError(w, http.StatusServiceUnavailable, fmt.Sprintf("unable to load models from GitHub Copilot CLI: %v", lastErr))
+}
+
+func parseAIModelCatalog(output []byte) (*aiModelCatalog, error) {
+	type discoveredModel struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		Current bool   `json:"current,omitempty"`
+	}
+	var discovered []discoveredModel
+	current := ""
+	if err := json.Unmarshal(output, &discovered); err != nil {
+		var envelope struct {
+			Models  json.RawMessage `json:"models"`
+			Current string          `json:"current"`
+		}
+		if err := json.Unmarshal(output, &envelope); err != nil {
+			return nil, fmt.Errorf("invalid JSON: %w", err)
+		}
+		current = envelope.Current
+		if err := json.Unmarshal(envelope.Models, &discovered); err != nil {
+			var ids []string
+			if err := json.Unmarshal(envelope.Models, &ids); err != nil {
+				return nil, fmt.Errorf("invalid models: %w", err)
+			}
+			for _, id := range ids {
+				discovered = append(discovered, discoveredModel{ID: id, Name: id})
+			}
+		}
+	}
+
+	models := make([]aiModel, 0, len(discovered))
+	for _, discoveredModel := range discovered {
+		if discoveredModel.ID == "" {
+			continue
+		}
+		if discoveredModel.Name == "" {
+			discoveredModel.Name = discoveredModel.ID
+		}
+		if discoveredModel.Current {
+			current = discoveredModel.ID
+		}
+		models = append(models, aiModel{ID: discoveredModel.ID, Name: discoveredModel.Name})
+	}
+	if len(models) == 0 {
+		return nil, fmt.Errorf("no models returned")
+	}
+
+	return &aiModelCatalog{Models: models, Current: current}, nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

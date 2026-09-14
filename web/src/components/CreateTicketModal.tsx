@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import type { Ticket, Project, Team } from "../api/client";
+import { useAIModels } from "../hooks/useAIModels";
 
 const PRIORITIES = ["urgent", "high", "medium", "low"];
 
@@ -17,10 +18,12 @@ export default function CreateTicketModal({
   onClose: () => void;
   onCreate: (data: Partial<Ticket>) => void;
 }) {
+  const aiModels = useAIModels();
   const [projectId, setProjectId] = useState(projects[0]?.id || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [aiModel, setAIModel] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [teamId, setTeamId] = useState("");
 
@@ -32,6 +35,7 @@ export default function CreateTicketModal({
       title,
       description,
       priority,
+      aiModel: aiModel.trim() || undefined,
       status: defaultStatus || "todo",
       dueDate: dueDate || undefined,
       teamId: teamId || undefined,
@@ -146,6 +150,24 @@ export default function CreateTicketModal({
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              AI Model
+            </label>
+            <select
+              value={aiModel}
+              onChange={(e) => setAIModel(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Use global setting</option>
+              {aiModels.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

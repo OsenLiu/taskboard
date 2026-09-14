@@ -30,6 +30,7 @@ type Ticket struct {
 	Description string     `json:"description,omitempty"`
 	Status      string     `json:"status"`
 	Priority    string     `json:"priority"`
+	AIModel     *string    `json:"aiModel,omitempty"`
 	DueDate     *time.Time `json:"dueDate,omitempty"`
 	Position    float64    `json:"position"`
 	CreatedAt   time.Time  `json:"createdAt"`
@@ -134,6 +135,7 @@ type CreateTicketRequest struct {
 	Description string   `json:"description,omitempty"`
 	Status      string   `json:"status,omitempty"`
 	Priority    string   `json:"priority,omitempty"`
+	AIModel     *string  `json:"aiModel,omitempty"`
 	DueDate     *string  `json:"dueDate,omitempty"`
 	Labels      []string `json:"labels,omitempty"`
 	BlockedBy   []string `json:"blockedBy,omitempty"`
@@ -145,6 +147,7 @@ type UpdateTicketRequest struct {
 	Description *string  `json:"description,omitempty"`
 	Status      *string  `json:"status,omitempty"`
 	Priority    *string  `json:"priority,omitempty"`
+	AIModel     *string  `json:"aiModel,omitempty"`
 	DueDate     *string  `json:"dueDate,omitempty"`
 	Position    *float64 `json:"position,omitempty"`
 	Labels      []string `json:"labels,omitempty"`
@@ -175,4 +178,13 @@ type TicketFilter struct {
 	TeamID    string
 	Status    string
 	Priority  string
+}
+
+type Setting struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type UpdateSettingRequest struct {
+	Value string `json:"value"`
 }
