@@ -64,7 +64,7 @@ func ticketCommands() *cobra.Command {
 			if ticket.AIModel != nil {
 				model = *ticket.AIModel
 			}
-			fmt.Printf("%s\t%s\n", ticket.ID, model)
+			fmt.Printf("%s\n%s\n%s\n", ticket.ID, model, ticket.Folder)
 			return nil
 		},
 	}

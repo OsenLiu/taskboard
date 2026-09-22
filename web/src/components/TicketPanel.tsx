@@ -32,6 +32,7 @@ export default function TicketPanel({
   const aiModels = useAIModels();
   const [title, setTitle] = useState(ticket.title);
   const [description, setDescription] = useState(ticket.description);
+  const [folder, setFolder] = useState(ticket.folder || "");
   const [status, setStatus] = useState(ticket.status);
   const [priority, setPriority] = useState(ticket.priority);
   const [aiModel, setAIModel] = useState(ticket.aiModel || "");
@@ -48,6 +49,7 @@ export default function TicketPanel({
     onUpdate(ticket.id, {
       title,
       description,
+      folder: folder.trim() || undefined,
       status,
       priority,
       aiModel: aiModel.trim(),
@@ -244,6 +246,20 @@ export default function TicketPanel({
               <div className="text-sm text-slate-400 px-3 py-2">
                 {projects.find((p) => p.id === ticket.projectId)?.name || "—"}
               </div>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                Folder
+              </label>
+              <input
+                value={folder}
+                onChange={(e) => {
+                  setFolder(e.target.value);
+                  markDirty();
+                }}
+                placeholder="Optional working folder override"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">

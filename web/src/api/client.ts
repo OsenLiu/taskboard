@@ -5,6 +5,7 @@ export interface Project {
   description: string;
   icon: string;
   color: string;
+  folder?: string;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +39,7 @@ export interface Ticket {
   number: number;
   title: string;
   description: string;
+  folder?: string;
   status: string;
   priority: string;
   aiModel?: string;
@@ -193,5 +195,11 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ value }),
       }),
+  },
+
+  logs: {
+    list: () => request<{ dates: string[] }>("/api/logs"),
+    get: (date: string) =>
+      request<{ date: string; content: string }>(`/api/logs/${encodeURIComponent(date)}`),
   },
 };

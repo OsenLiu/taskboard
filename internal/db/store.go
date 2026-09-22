@@ -70,7 +70,7 @@ func newID() string {
 }
 
 func (s *Store) ListProjects(status string) ([]models.Project, error) {
-	query := "SELECT id, name, prefix, description, icon, color, status, created_at, updated_at FROM projects"
+	query := "SELECT id, name, prefix, description, icon, color, folder, status, created_at, updated_at FROM projects"
 	args := []any{}
 	if status != "" {
 		query += " WHERE status = ?"
@@ -87,7 +87,7 @@ func (s *Store) ListProjects(status string) ([]models.Project, error) {
 	var projects []models.Project
 	for rows.Next() {
 		var p models.Project
-		if err := rows.Scan(&p.ID, &p.Name, &p.Prefix, &p.Description, &p.Icon, &p.Color, &p.Status, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.Prefix, &p.Description, &p.Icon, &p.Color, &p.Folder, &p.Status, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
 		projects = append(projects, p)
@@ -98,8 +98,8 @@ func (s *Store) ListProjects(status string) ([]models.Project, error) {
 func (s *Store) GetProject(id string) (*models.Project, error) {
 	var p models.Project
 	err := s.db.QueryRow(
-		"SELECT id, name, prefix, description, icon, color, status, created_at, updated_at FROM projects WHERE id = ?", id,
-	).Scan(&p.ID, &p.Name, &p.Prefix, &p.Description, &p.Icon, &p.Color, &p.Status, &p.CreatedAt, &p.UpdatedAt)
+		"SELECT id, name, prefix, description, icon, color, folder, status, created_at, updated_at FROM projects WHERE id = ?", id,
+	).Scan(&p.ID, &p.Name, &p.Prefix, &p.Description, &p.Icon, &p.Color, &p.Folder, &p.Status, &p.CreatedAt, &p.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -114,6 +114,7 @@ func (s *Store) CreateProject(req models.CreateProjectRequest) (*models.Project,
 		Description: req.Description,
 		Icon:        req.Icon,
 		Color:       req.Color,
+		Folder:      req.Folder,
 		Status:      "active",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -123,8 +124,8 @@ func (s *Store) CreateProject(req models.CreateProjectRequest) (*models.Project,
 	}
 
 	_, err := s.db.Exec(
-		"INSERT INTO projects (id, name, prefix, description, icon, color, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		p.ID, p.Name, p.Prefix, p.Description, p.Icon, p.Color, p.Status, p.CreatedAt, p.UpdatedAt,
+		"INSERT INTO projects (id, name, prefix, description, icon, color, folder, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		p.ID, p.Name, p.Prefix, p.Description, p.Icon, p.Color, p.Folder, p.Status, p.CreatedAt, p.UpdatedAt,
 	)
 	return &p, err
 }
@@ -150,14 +151,17 @@ func (s *Store) UpdateProject(id string, req models.UpdateProjectRequest) (*mode
 	if req.Color != nil {
 		p.Color = *req.Color
 	}
+	if req.Folder != nil {
+		p.Folder = *req.Folder
+	}
 	if req.Status != nil {
 		p.Status = *req.Status
 	}
 	p.UpdatedAt = time.Now()
 
 	_, err = s.db.Exec(
-		"UPDATE projects SET name=?, prefix=?, description=?, icon=?, color=?, status=?, updated_at=? WHERE id=?",
-		p.Name, p.Prefix, p.Description, p.Icon, p.Color, p.Status, p.UpdatedAt, p.ID,
+		"UPDATE projects SET name=?, prefix=?, description=?, icon=?, color=?, folder=?, status=?, updated_at=? WHERE id=?",
+		p.Name, p.Prefix, p.Description, p.Icon, p.Color, p.Folder, p.Status, p.UpdatedAt, p.ID,
 	)
 	return p, err
 }
@@ -240,7 +244,7 @@ func (s *Store) nextTicketNumber(projectID string) (int, error) {
 }
 
 func (s *Store) ListTickets(filter models.TicketFilter) ([]models.Ticket, error) {
-	query := `SELECT t.id, t.project_id, t.team_id, t.number, t.title, t.description,
+	query := `SELECT t.id, t.project_id, t.team_id, t.number, t.title, t.description, t.folder,
 		t.status, t.priority, t.ai_model, t.due_date, t.position, t.created_at, t.updated_at,
 		COALESCE(p.prefix, '') as project_prefix
 		FROM tickets t LEFT JOIN projects p ON t.project_id = p.id WHERE 1=1`
@@ -273,7 +277,7 @@ func (s *Store) ListTickets(filter models.TicketFilter) ([]models.Ticket, error)
 	var tickets []models.Ticket
 	for rows.Next() {
 		var t models.Ticket
-		if err := rows.Scan(&t.ID, &t.ProjectID, &t.TeamID, &t.Number, &t.Title, &t.Description,
+		if err := rows.Scan(&t.ID, &t.ProjectID, &t.TeamID, &t.Number, &t.Title, &t.Description, &t.Folder,
 			&t.Status, &t.Priority, &t.AIModel, &t.DueDate, &t.Position, &t.CreatedAt, &t.UpdatedAt,
 			&t.ProjectPrefix); err != nil {
 			return nil, err
@@ -296,11 +300,11 @@ func (s *Store) ListTickets(filter models.TicketFilter) ([]models.Ticket, error)
 func (s *Store) GetTicket(id string) (*models.Ticket, error) {
 	var t models.Ticket
 	err := s.db.QueryRow(
-		`SELECT t.id, t.project_id, t.team_id, t.number, t.title, t.description,
+		`SELECT t.id, t.project_id, t.team_id, t.number, t.title, t.description, t.folder,
 		t.status, t.priority, t.ai_model, t.due_date, t.position, t.created_at, t.updated_at,
 		COALESCE(p.prefix, '') as project_prefix
 		FROM tickets t LEFT JOIN projects p ON t.project_id = p.id WHERE t.id = ?`, id,
-	).Scan(&t.ID, &t.ProjectID, &t.TeamID, &t.Number, &t.Title, &t.Description,
+	).Scan(&t.ID, &t.ProjectID, &t.TeamID, &t.Number, &t.Title, &t.Description, &t.Folder,
 		&t.Status, &t.Priority, &t.AIModel, &t.DueDate, &t.Position, &t.CreatedAt, &t.UpdatedAt,
 		&t.ProjectPrefix)
 	if err == sql.ErrNoRows {
@@ -366,6 +370,7 @@ func (s *Store) CreateTicket(req models.CreateTicketRequest) (*models.Ticket, er
 		Number:      num,
 		Title:       req.Title,
 		Description: req.Description,
+		Folder:      req.Folder,
 		Status:      status,
 		Priority:    priority,
 		AIModel:     req.AIModel,
@@ -382,9 +387,9 @@ func (s *Store) CreateTicket(req models.CreateTicketRequest) (*models.Ticket, er
 	}
 
 	_, err = s.db.Exec(
-		`INSERT INTO tickets (id, project_id, team_id, number, title, description, status, priority, ai_model, due_date, position, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.ProjectID, t.TeamID, t.Number, t.Title, t.Description, t.Status, t.Priority, t.AIModel, t.DueDate, t.Position, t.CreatedAt, t.UpdatedAt,
+		`INSERT INTO tickets (id, project_id, team_id, number, title, description, folder, status, priority, ai_model, due_date, position, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.ProjectID, t.TeamID, t.Number, t.Title, t.Description, t.Folder, t.Status, t.Priority, t.AIModel, t.DueDate, t.Position, t.CreatedAt, t.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -417,6 +422,9 @@ func (s *Store) UpdateTicket(id string, req models.UpdateTicketRequest) (*models
 	if req.Description != nil {
 		t.Description = *req.Description
 	}
+	if req.Folder != nil {
+		t.Folder = *req.Folder
+	}
 	if req.Status != nil {
 		t.Status = *req.Status
 	}
@@ -445,8 +453,8 @@ func (s *Store) UpdateTicket(id string, req models.UpdateTicketRequest) (*models
 	t.UpdatedAt = time.Now()
 
 	_, err = s.db.Exec(
-		`UPDATE tickets SET team_id=?, title=?, description=?, status=?, priority=?, ai_model=?, due_date=?, position=?, updated_at=? WHERE id=?`,
-		t.TeamID, t.Title, t.Description, t.Status, t.Priority, t.AIModel, t.DueDate, t.Position, t.UpdatedAt, t.ID,
+		`UPDATE tickets SET team_id=?, title=?, description=?, folder=?, status=?, priority=?, ai_model=?, due_date=?, position=?, updated_at=? WHERE id=?`,
+		t.TeamID, t.Title, t.Description, t.Folder, t.Status, t.Priority, t.AIModel, t.DueDate, t.Position, t.UpdatedAt, t.ID,
 	)
 	if err != nil {
 		return nil, err

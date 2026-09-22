@@ -250,6 +250,7 @@ export default function Board() {
   );
 
   const loadBoard = useCallback(async () => {
+    setLoading(true);
     try {
       const board = await api.board.get(selectedProject || undefined);
       setColumns(board.columns || []);
@@ -257,8 +258,9 @@ export default function Board() {
       setColumns(
         STATUSES.map((status) => ({ status, tickets: [] }))
       );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [selectedProject]);
 
   useEffect(() => {
@@ -267,8 +269,7 @@ export default function Board() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    loadBoard();
+    void loadBoard();
   }, [loadBoard]);
 
   const getColumnTickets = (status: string) =>

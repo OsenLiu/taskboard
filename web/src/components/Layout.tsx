@@ -5,6 +5,7 @@ import {
   FolderKanban,
   Users,
   Ticket,
+  FileText,
   Zap,
   TerminalSquare,
   Settings,
@@ -16,6 +17,7 @@ const navItems = [
   { to: "/projects", icon: FolderKanban, label: "Projects" },
   { to: "/teams", icon: Users, label: "Teams" },
   { to: "/tickets", icon: Ticket, label: "Tickets" },
+  { to: "/logs", icon: FileText, label: "Logs" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 

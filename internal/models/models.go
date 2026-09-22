@@ -9,6 +9,7 @@ type Project struct {
 	Description string    `json:"description,omitempty"`
 	Icon        string    `json:"icon,omitempty"`
 	Color       string    `json:"color,omitempty"`
+	Folder      string    `json:"folder,omitempty"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
@@ -28,6 +29,7 @@ type Ticket struct {
 	Number      int        `json:"number"`
 	Title       string     `json:"title"`
 	Description string     `json:"description,omitempty"`
+	Folder      string     `json:"folder,omitempty"`
 	Status      string     `json:"status"`
 	Priority    string     `json:"priority"`
 	AIModel     *string    `json:"aiModel,omitempty"`
@@ -107,6 +109,7 @@ type CreateProjectRequest struct {
 	Description string `json:"description,omitempty"`
 	Icon        string `json:"icon,omitempty"`
 	Color       string `json:"color,omitempty"`
+	Folder      string `json:"folder,omitempty"`
 }
 
 type UpdateProjectRequest struct {
@@ -115,6 +118,7 @@ type UpdateProjectRequest struct {
 	Description *string `json:"description,omitempty"`
 	Icon        *string `json:"icon,omitempty"`
 	Color       *string `json:"color,omitempty"`
+	Folder      *string `json:"folder,omitempty"`
 	Status      *string `json:"status,omitempty"`
 }
 
@@ -133,6 +137,7 @@ type CreateTicketRequest struct {
 	TeamID      *string  `json:"teamId,omitempty"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
+	Folder      string   `json:"folder,omitempty"`
 	Status      string   `json:"status,omitempty"`
 	Priority    string   `json:"priority,omitempty"`
 	AIModel     *string  `json:"aiModel,omitempty"`
@@ -145,6 +150,7 @@ type UpdateTicketRequest struct {
 	TeamID      *string  `json:"teamId,omitempty"`
 	Title       *string  `json:"title,omitempty"`
 	Description *string  `json:"description,omitempty"`
+	Folder      *string  `json:"folder,omitempty"`
 	Status      *string  `json:"status,omitempty"`
 	Priority    *string  `json:"priority,omitempty"`
 	AIModel     *string  `json:"aiModel,omitempty"`

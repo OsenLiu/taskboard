@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -111,6 +113,8 @@ func (s *Server) setupRoutes(webFS fs.FS) {
 		r.Get("/settings/ai-model", s.getAIModel)
 		r.Put("/settings/ai-model", s.updateAIModel)
 		r.Get("/settings/ai-models", s.listAIModels)
+		r.Get("/logs", s.listLogs)
+		r.Get("/logs/{date}", s.getLog)
 		r.Get("/terminal/ws", s.handleTerminalWS)
 	})
 
@@ -258,6 +262,63 @@ func parseAIModelCatalog(output []byte) (*aiModelCatalog, error) {
 	}
 
 	return &aiModelCatalog{Models: models, Current: current}, nil
+}
+
+func logDir() string {
+	return filepath.Join(os.Getenv("HOME"), ".local", "state", "taskboard-agent")
+}
+
+func logPathForDate(date string) string {
+	if date == "" {
+		date = time.Now().UTC().Format("2006-01-02")
+	}
+	return filepath.Join(logDir(), date+".log")
+}
+
+func listLogFiles() []string {
+	entries, err := os.ReadDir(logDir())
+	if err != nil {
+		return nil
+	}
+	files := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".log") {
+			continue
+		}
+		files = append(files, strings.TrimSuffix(entry.Name(), ".log"))
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(files)))
+	return files
+}
+
+func readLogFile(path string) ([]byte, error) {
+	if path == "" {
+		path = logPathForDate("")
+	}
+	return os.ReadFile(path)
+}
+
+func (s *Server) listLogs(w http.ResponseWriter, r *http.Request) {
+	files := listLogFiles()
+	writeJSON(w, http.StatusOK, map[string][]string{"dates": files})
+}
+
+func (s *Server) getLog(w http.ResponseWriter, r *http.Request) {
+	date := chi.URLParam(r, "date")
+	if date == "" {
+		date = time.Now().UTC().Format("2006-01-02")
+	}
+	path := logPathForDate(date)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeJSON(w, http.StatusOK, map[string]string{"date": date, "content": ""})
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"date": date, "content": string(data)})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -454,6 +515,16 @@ func (s *Server) createTicket(w http.ResponseWriter, r *http.Request) {
 	if req.ProjectID == "" || req.Title == "" {
 		writeError(w, http.StatusBadRequest, "projectId and title are required")
 		return
+	}
+	if req.Folder == "" {
+		project, err := s.store.GetProject(req.ProjectID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if project != nil {
+			req.Folder = project.Folder
+		}
 	}
 	t, err := s.store.CreateTicket(req)
 	if err != nil {

@@ -22,10 +22,17 @@ export default function CreateTicketModal({
   const [projectId, setProjectId] = useState(projects[0]?.id || "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [folder, setFolder] = useState(projects[0]?.folder || "");
   const [priority, setPriority] = useState("medium");
   const [aiModel, setAIModel] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [teamId, setTeamId] = useState("");
+
+  const handleProjectChange = (nextProjectId: string) => {
+    setProjectId(nextProjectId);
+    const nextProject = projects.find((project) => project.id === nextProjectId);
+    setFolder(nextProject?.folder || "");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +41,7 @@ export default function CreateTicketModal({
       projectId,
       title,
       description,
+      folder: folder.trim() || undefined,
       priority,
       aiModel: aiModel.trim() || undefined,
       status: defaultStatus || "todo",
@@ -66,7 +74,7 @@ export default function CreateTicketModal({
             </label>
             <select
               value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
+              onChange={(e) => handleProjectChange(e.target.value)}
               required
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
@@ -77,6 +85,18 @@ export default function CreateTicketModal({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              Folder
+            </label>
+            <input
+              value={folder}
+              onChange={(e) => setFolder(e.target.value)}
+              placeholder="Optional working folder override"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
           </div>
 
           <div>

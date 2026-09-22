@@ -124,7 +124,15 @@ export default function Teams() {
   };
 
   useEffect(() => {
-    load();
+    let active = true;
+    const run = async () => {
+      await load();
+      if (active) setLoading(false);
+    };
+    void run();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleCreate = async (data: Partial<Team>) => {

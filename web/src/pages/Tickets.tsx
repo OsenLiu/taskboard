@@ -94,7 +94,15 @@ export default function Tickets() {
   }, []);
 
   useEffect(() => {
-    load();
+    let active = true;
+    const run = async () => {
+      await load();
+      if (active) setLoading(false);
+    };
+    void run();
+    return () => {
+      active = false;
+    };
   }, [load]);
 
   const filtered = tickets.filter((t) => {
