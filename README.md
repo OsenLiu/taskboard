@@ -77,6 +77,18 @@ taskboard settings get ai_credit_limit
 taskboard settings get ai_model
 ```
 
+To run the scheduled agent from a checkout, make the template executable and
+add it to cron:
+
+```bash
+chmod +x scripts/taskboard-agent
+crontab -e
+```
+
+For an installed copy, set `TASKBOARD_REPO` to the checkout containing the
+Taskboard binary. The script uses the saved AI settings and writes logs to
+`~/.local/state/taskboard-agent`.
+
 ### MCP Server (for AI assistants)
 
 ```bash

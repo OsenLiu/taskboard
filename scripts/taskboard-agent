@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Cron runs with a minimal PATH, so 'node' (needed by Copilot CLI's shebang) may not be found.
+for node_bin in "$HOME"/.nvm/versions/node/*/bin; do
+  if [[ -x "$node_bin/node" ]]; then
+    PATH="$node_bin:$PATH"
+  fi
+done
+export PATH
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="${TASKBOARD_REPO:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
+COPILOT="${TASKBOARD_COPILOT_BIN:-}"
+LOG_DIR="$HOME/.local/state/taskboard-agent"
+AI_CREDIT_LIMIT="${TASKBOARD_AI_CREDIT_LIMIT:-$("$REPO/taskboard" settings get ai_credit_limit 2>/dev/null || printf '30')}"
+if [[ -n "${TASKBOARD_AI_MODEL+x}" ]]; then
+  AI_MODEL="$TASKBOARD_AI_MODEL"
+  AI_MODEL_IS_OVERRIDDEN=true
+else
+  AI_MODEL="$("$REPO/taskboard" settings get ai_model 2>/dev/null || printf 'auto')"
+  AI_MODEL_IS_OVERRIDDEN=false
+fi
+
+if [[ -z "$COPILOT" ]]; then
+  while IFS= read -r candidate; do
+    if [[ -x "$candidate" ]]; then
+      COPILOT="$candidate"
+      break
+    fi
+  done < <(printf '%s\n' "$HOME"/.nvm/versions/node/*/bin/copilot | sort -Vr)
+fi
+
+if [[ -z "$COPILOT" ]]; then
+  COPILOT="$(command -v copilot 2>/dev/null || true)"
+fi
+
+if [[ -z "$COPILOT" ]] || [[ ! -x "$COPILOT" ]]; then
+  echo "Cannot find GitHub Copilot CLI. Set TASKBOARD_COPILOT_BIN to its executable path." >&2
+  exit 127
+fi
+
+if ! [[ "$AI_CREDIT_LIMIT" =~ ^[0-9]+$ ]] || (( AI_CREDIT_LIMIT < 30 )); then
+  echo "TASKBOARD_AI_CREDIT_LIMIT must be an integer of at least 30" >&2
+  exit 2
+fi
+
+if [[ -z "$AI_MODEL" ]]; then
+  echo "TASKBOARD_AI_MODEL must not be empty" >&2
+  exit 2
+fi
+
+mkdir -p "$LOG_DIR"
+cd "$REPO"
+
+# Select before starting Copilot so the ticket's model can control this run.
+NEXT_TICKET="$("$REPO/taskboard" ticket next)"
+if [[ -z "$NEXT_TICKET" ]]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') - No actionable 'todo' tickets found. Exiting." >> "$LOG_DIR/$(date +%F).log"
+  exit 0
+fi
+mapfile -t TICKET_FIELDS <<< "$NEXT_TICKET"
+TICKET_ID="${TICKET_FIELDS[0]:-}"
+TICKET_AI_MODEL="${TICKET_FIELDS[1]:-}"
+PROJECT_FOLDER="${TICKET_FIELDS[2]:-}"
+
+if [[ -z "$PROJECT_FOLDER" ]] || [[ ! -d "$PROJECT_FOLDER" ]]; then
+  echo "Project folder for ticket $TICKET_ID does not exist: ${PROJECT_FOLDER:-<empty>}" >&2
+  exit 2
+fi
+
+if [[ "$AI_MODEL_IS_OVERRIDDEN" == false ]] && [[ -n "$TICKET_AI_MODEL" ]]; then
+  AI_MODEL="$TICKET_AI_MODEL"
+fi
+
+cd "$PROJECT_FOLDER"
+
+exec "$COPILOT" \
+  --allow-all \
+  --max-ai-credits "$AI_CREDIT_LIMIT" \
+  --model "$AI_MODEL" \
+  -p "
+Work on exactly one Taskboard ticket.
+
+1. Work only on ticket ID \"$TICKET_ID\". Use the Taskboard MCP server to read it and its subtasks.
+2. Confirm the ticket is still unblocked and has status \"todo\"; otherwise stop without editing.
+3. Move it to \"in_progress\" before editing code.
+4. Read the complete ticket and its subtasks.
+5. Implement the ticket in this repository.
+6. Run the relevant tests, linters, and builds.
+7. Before finishing, use Taskboard MCP update_ticket to append a dated \"## AI Work Log\" section to the ticket description. Preserve the existing description exactly and append:
+  - Summary of the work completed
+  - Files changed
+  - Checks run and their results
+  - Any remaining issues or follow-up work
+  Include the current date and time.
+8. Move the ticket to \"done\" only if all relevant checks pass.
+9. If checks fail, leave it \"in_progress\" and record the failures in the ticket description.
+10. Do not work on more than one ticket during this run.
+11. Your final response must include the ticket ID, status, summary, checks, and the exact text appended to the ticket.
+12. Treat the Copilot AI credit limit as a hard work budget for this run. If the remaining budget is insufficient to safely finish the ticket, do not start another ticket; leave the current ticket status unchanged or restore it to \"todo\" and explain why.
+" >> "$LOG_DIR/$(date +%F).log" 2>&1
