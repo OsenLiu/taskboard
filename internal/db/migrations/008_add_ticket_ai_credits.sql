@@ -1,0 +1,1 @@
+ALTER TABLE tickets ADD COLUMN ai_credits_used INTEGER;

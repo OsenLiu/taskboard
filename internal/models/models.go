@@ -23,20 +23,21 @@ type Team struct {
 }
 
 type Ticket struct {
-	ID          string     `json:"id"`
-	ProjectID   string     `json:"projectId"`
-	TeamID      *string    `json:"teamId,omitempty"`
-	Number      int        `json:"number"`
-	Title       string     `json:"title"`
-	Description string     `json:"description,omitempty"`
-	Folder      string     `json:"folder,omitempty"`
-	Status      string     `json:"status"`
-	Priority    string     `json:"priority"`
-	AIModel     *string    `json:"aiModel,omitempty"`
-	DueDate     *time.Time `json:"dueDate,omitempty"`
-	Position    float64    `json:"position"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
+	ID            string     `json:"id"`
+	ProjectID     string     `json:"projectId"`
+	TeamID        *string    `json:"teamId,omitempty"`
+	Number        int        `json:"number"`
+	Title         string     `json:"title"`
+	Description   string     `json:"description,omitempty"`
+	Folder        string     `json:"folder,omitempty"`
+	Status        string     `json:"status"`
+	Priority      string     `json:"priority"`
+	AIModel       *string    `json:"aiModel,omitempty"`
+	AICreditsUsed *int       `json:"aiCreditsUsed,omitempty"`
+	DueDate       *time.Time `json:"dueDate,omitempty"`
+	Position      float64    `json:"position"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
 
 	// Populated fields (not stored directly)
 	ProjectPrefix string    `json:"projectPrefix,omitempty"`

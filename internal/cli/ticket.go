@@ -134,6 +134,30 @@ func ticketCommands() *cobra.Command {
 	moveCmd.Flags().StringVar(&moveStatus, "status", "", "target status (backlog|todo|in_progress|done; required)")
 	moveCmd.MarkFlagRequired("status")
 
+	var aiCredits int
+	recordAICreditsCmd := &cobra.Command{
+		Use:   "record-ai-credits [id]",
+		Short: "Record AI credits used by a ticket",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if aiCredits < 0 {
+				return fmt.Errorf("AI credits must not be negative")
+			}
+			store, err := openStore()
+			if err != nil {
+				return err
+			}
+			t, err := store.RecordAICredits(args[0], aiCredits)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Recorded %d AI credits for %s\n", aiCredits, t.DisplayKey())
+			return nil
+		},
+	}
+	recordAICreditsCmd.Flags().IntVar(&aiCredits, "credits", 0, "AI credits used")
+	recordAICreditsCmd.MarkFlagRequired("credits")
+
 	deleteCmd := &cobra.Command{
 		Use:   "delete [id]",
 		Short: "Delete a ticket",
@@ -151,6 +175,6 @@ func ticketCommands() *cobra.Command {
 		},
 	}
 
-	cmd.AddCommand(listCmd, nextCmd, createCmd, moveCmd, deleteCmd)
+	cmd.AddCommand(listCmd, nextCmd, createCmd, moveCmd, recordAICreditsCmd, deleteCmd)
 	return cmd
 }

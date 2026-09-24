@@ -284,6 +284,16 @@ export default function TicketPanel({
                 ))}
               </select>
             </div>
+            {ticket.aiCreditsUsed !== undefined && (
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  AI Credits Used
+                </label>
+                <div className="text-sm text-slate-400 px-3 py-2">
+                  {ticket.aiCreditsUsed}
+                </div>
+              </div>
+            )}
           </div>
 
           {dirty && (

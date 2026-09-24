@@ -43,6 +43,7 @@ export interface Ticket {
   status: string;
   priority: string;
   aiModel?: string;
+  aiCreditsUsed?: number;
   dueDate?: string;
   position: number;
   createdAt: string;

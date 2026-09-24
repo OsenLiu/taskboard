@@ -245,7 +245,7 @@ func (s *Store) nextTicketNumber(projectID string) (int, error) {
 
 func (s *Store) ListTickets(filter models.TicketFilter) ([]models.Ticket, error) {
 	query := `SELECT t.id, t.project_id, t.team_id, t.number, t.title, t.description, t.folder,
-		t.status, t.priority, t.ai_model, t.due_date, t.position, t.created_at, t.updated_at,
+		t.status, t.priority, t.ai_model, t.ai_credits_used, t.due_date, t.position, t.created_at, t.updated_at,
 		COALESCE(p.prefix, '') as project_prefix
 		FROM tickets t LEFT JOIN projects p ON t.project_id = p.id WHERE 1=1`
 	args := []any{}
@@ -277,10 +277,15 @@ func (s *Store) ListTickets(filter models.TicketFilter) ([]models.Ticket, error)
 	var tickets []models.Ticket
 	for rows.Next() {
 		var t models.Ticket
+		var aiCreditsUsed sql.NullInt64
 		if err := rows.Scan(&t.ID, &t.ProjectID, &t.TeamID, &t.Number, &t.Title, &t.Description, &t.Folder,
-			&t.Status, &t.Priority, &t.AIModel, &t.DueDate, &t.Position, &t.CreatedAt, &t.UpdatedAt,
+			&t.Status, &t.Priority, &t.AIModel, &aiCreditsUsed, &t.DueDate, &t.Position, &t.CreatedAt, &t.UpdatedAt,
 			&t.ProjectPrefix); err != nil {
 			return nil, err
+		}
+		if aiCreditsUsed.Valid {
+			credits := int(aiCreditsUsed.Int64)
+			t.AICreditsUsed = &credits
 		}
 		tickets = append(tickets, t)
 	}
@@ -299,19 +304,24 @@ func (s *Store) ListTickets(filter models.TicketFilter) ([]models.Ticket, error)
 
 func (s *Store) GetTicket(id string) (*models.Ticket, error) {
 	var t models.Ticket
+	var aiCreditsUsed sql.NullInt64
 	err := s.db.QueryRow(
 		`SELECT t.id, t.project_id, t.team_id, t.number, t.title, t.description, t.folder,
-		t.status, t.priority, t.ai_model, t.due_date, t.position, t.created_at, t.updated_at,
-		COALESCE(p.prefix, '') as project_prefix
-		FROM tickets t LEFT JOIN projects p ON t.project_id = p.id WHERE t.id = ?`, id,
+		 t.status, t.priority, t.ai_model, t.ai_credits_used, t.due_date, t.position, t.created_at, t.updated_at,
+		 COALESCE(p.prefix, '') as project_prefix
+		 FROM tickets t LEFT JOIN projects p ON t.project_id = p.id WHERE t.id = ?`, id,
 	).Scan(&t.ID, &t.ProjectID, &t.TeamID, &t.Number, &t.Title, &t.Description, &t.Folder,
-		&t.Status, &t.Priority, &t.AIModel, &t.DueDate, &t.Position, &t.CreatedAt, &t.UpdatedAt,
+		&t.Status, &t.Priority, &t.AIModel, &aiCreditsUsed, &t.DueDate, &t.Position, &t.CreatedAt, &t.UpdatedAt,
 		&t.ProjectPrefix)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	if aiCreditsUsed.Valid {
+		credits := int(aiCreditsUsed.Int64)
+		t.AICreditsUsed = &credits
 	}
 
 	t.Labels, _ = s.getTicketLabels(t.ID)
@@ -323,7 +333,8 @@ func (s *Store) GetTicket(id string) (*models.Ticket, error) {
 
 func (s *Store) NextActionableTicket() (*models.Ticket, error) {
 	var id string
-	err := s.db.QueryRow(`SELECT t.id
+	err := s.db.QueryRow(`WITH next_ticket AS (
+		SELECT t.id
 		FROM tickets t
 		WHERE t.status = 'todo'
 		AND NOT EXISTS (
@@ -338,12 +349,31 @@ func (s *Store) NextActionableTicket() (*models.Ticket, error) {
 			WHEN 'low' THEN 3
 			ELSE 4
 		END, t.position ASC, t.created_at ASC
-		LIMIT 1`).Scan(&id)
+		LIMIT 1
+	)
+	UPDATE tickets
+	SET status = 'in_progress', updated_at = CURRENT_TIMESTAMP
+	WHERE id = (SELECT id FROM next_ticket) AND status = 'todo'
+	RETURNING id`).Scan(&id)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	return s.GetTicket(id)
+}
+
+func (s *Store) RecordAICredits(id string, credits int) (*models.Ticket, error) {
+	result, err := s.db.Exec("UPDATE tickets SET ai_credits_used=?, updated_at=? WHERE id=?", credits, time.Now(), id)
+	if err != nil {
+		return nil, err
+	}
+	if affected, err := result.RowsAffected(); err != nil || affected == 0 {
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("ticket not found")
 	}
 	return s.GetTicket(id)
 }

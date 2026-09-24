@@ -13,6 +13,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${TASKBOARD_REPO:-$(cd -- "$SCRIPT_DIR/.." && pwd)}"
 COPILOT="${TASKBOARD_COPILOT_BIN:-}"
 LOG_DIR="$HOME/.local/state/taskboard-agent"
+USAGE_DIR="$LOG_DIR/usage"
 AI_CREDIT_LIMIT="${TASKBOARD_AI_CREDIT_LIMIT:-$("$REPO/taskboard" settings get ai_credit_limit 2>/dev/null || printf '30')}"
 if [[ -n "${TASKBOARD_AI_MODEL+x}" ]]; then
   AI_MODEL="$TASKBOARD_AI_MODEL"
@@ -50,7 +51,7 @@ if [[ -z "$AI_MODEL" ]]; then
   exit 2
 fi
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$USAGE_DIR"
 cd "$REPO"
 
 # Select before starting Copilot so the ticket's model can control this run.
@@ -74,17 +75,21 @@ if [[ "$AI_MODEL_IS_OVERRIDDEN" == false ]] && [[ -n "$TICKET_AI_MODEL" ]]; then
 fi
 
 cd "$PROJECT_FOLDER"
+USAGE_FILE="$USAGE_DIR/${TICKET_ID}-$$.json"
+trap 'rm -f "$USAGE_FILE"' EXIT
 
-exec "$COPILOT" \
+set +e
+"$COPILOT" \
   --allow-all \
   --max-ai-credits "$AI_CREDIT_LIMIT" \
   --model "$AI_MODEL" \
+  --usage-output-file "$USAGE_FILE" \
   -p "
 Work on exactly one Taskboard ticket.
 
 1. Work only on ticket ID \"$TICKET_ID\". Use the Taskboard MCP server to read it and its subtasks.
-2. Confirm the ticket is still unblocked and has status \"todo\"; otherwise stop without editing.
-3. Move it to \"in_progress\" before editing code.
+2. Confirm the ticket is still unblocked and has status \"in_progress\"; it was atomically claimed for this run. Otherwise stop without editing.
+3. It is already \"in_progress\" because this run claimed it atomically; begin editing only after the checks above.
 4. Read the complete ticket and its subtasks.
 5. Implement the ticket in this repository.
 6. Run the relevant tests, linters, and builds.
@@ -100,3 +105,29 @@ Work on exactly one Taskboard ticket.
 11. Your final response must include the ticket ID, status, summary, checks, and the exact text appended to the ticket.
 12. Treat the Copilot AI credit limit as a hard work budget for this run. If the remaining budget is insufficient to safely finish the ticket, do not start another ticket; leave the current ticket status unchanged or restore it to \"todo\" and explain why.
 " >> "$LOG_DIR/$(date +%F).log" 2>&1
+COPILOT_EXIT_CODE=$?
+set -e
+
+if [[ -s "$USAGE_FILE" ]]; then
+  AI_CREDITS_USED="$(node -e '
+    const fs = require("fs");
+    const data = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    function findCredits(value) {
+      if (!value || typeof value !== "object") return undefined;
+      for (const [key, child] of Object.entries(value)) {
+        const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (["aicreditsused", "creditsused"].includes(normalized) && Number.isInteger(child) && child >= 0) return child;
+        const nested = findCredits(child);
+        if (nested !== undefined) return nested;
+      }
+      return undefined;
+    }
+    const credits = findCredits(data);
+    if (credits !== undefined) process.stdout.write(String(credits));
+  ' "$USAGE_FILE" 2>/dev/null || true)"
+  if [[ -n "$AI_CREDITS_USED" ]]; then
+    "$REPO/taskboard" ticket record-ai-credits "$TICKET_ID" --credits "$AI_CREDITS_USED" >> "$LOG_DIR/$(date +%F).log" 2>&1 || true
+  fi
+fi
+
+exit "$COPILOT_EXIT_CODE"
