@@ -247,7 +247,10 @@ func (s *Store) ListTickets(filter models.TicketFilter) ([]models.Ticket, error)
 	query := `SELECT t.id, t.project_id, t.team_id, t.number, t.title, t.description, t.folder,
 		t.status, t.priority, t.ai_model, t.ai_credits_used, t.due_date, t.position, t.created_at, t.updated_at,
 		COALESCE(p.prefix, '') as project_prefix
-		FROM tickets t LEFT JOIN projects p ON t.project_id = p.id WHERE 1=1`
+		FROM tickets t
+		LEFT JOIN projects p ON t.project_id = p.id
+		LEFT JOIN teams tm ON t.team_id = tm.id
+		WHERE 1=1`
 	args := []any{}
 
 	if filter.ProjectID != "" {
@@ -265,6 +268,20 @@ func (s *Store) ListTickets(filter models.TicketFilter) ([]models.Ticket, error)
 	if filter.Priority != "" {
 		query += " AND t.priority = ?"
 		args = append(args, filter.Priority)
+	}
+	if filter.Search != "" {
+		query += ` AND (
+			LOWER(t.title) LIKE LOWER(?) OR
+			LOWER(t.description) LIKE LOWER(?) OR
+			LOWER(t.id) LIKE LOWER(?) OR
+			LOWER(p.prefix || '-' || t.number) LIKE LOWER(?) OR
+			LOWER(p.name) LIKE LOWER(?) OR
+			LOWER(tm.name) LIKE LOWER(?)
+		)`
+		search := "%" + filter.Search + "%"
+		for range 6 {
+			args = append(args, search)
+		}
 	}
 	query += " ORDER BY t.position ASC, t.created_at DESC"
 

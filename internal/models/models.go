@@ -185,6 +185,7 @@ type TicketFilter struct {
 	TeamID    string
 	Status    string
 	Priority  string
+	Search    string
 }
 
 type Setting struct {

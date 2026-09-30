@@ -128,7 +128,12 @@ export const api = {
   },
 
   tickets: {
-    list: () => request<Ticket[]>("/api/tickets"),
+    list: (search?: string) => {
+      const params = new URLSearchParams();
+      if (search?.trim()) params.set("search", search.trim());
+      const query = params.toString();
+      return request<Ticket[]>(`/api/tickets${query ? `?${query}` : ""}`);
+    },
     get: (id: string) => request<Ticket>(`/api/tickets/${id}`),
     create: (data: Partial<Ticket>) =>
       request<Ticket>("/api/tickets", {
