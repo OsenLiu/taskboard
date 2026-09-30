@@ -4,13 +4,14 @@ import Markdown from "react-markdown";
 import { api, type Ticket, type Project, type Team, type Subtask } from "../api/client";
 import { useAIModels } from "../hooks/useAIModels";
 
-const STATUSES = ["backlog", "todo", "in_progress", "done"];
+const STATUSES = ["backlog", "todo", "in_progress", "in-review", "done"];
 const PRIORITIES = ["urgent", "high", "medium", "low"];
 
 const STATUS_LABELS: Record<string, string> = {
   backlog: "Backlog",
   todo: "Todo",
   in_progress: "In Progress",
+  "in-review": "In Review",
   done: "Done",
 };
 

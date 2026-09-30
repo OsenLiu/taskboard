@@ -99,8 +99,8 @@ Work on exactly one Taskboard ticket.
   - Checks run and their results
   - Any remaining issues or follow-up work
   Include the current date and time.
-8. Move the ticket to \"done\" only if all relevant checks pass.
-9. If checks fail, leave it \"in_progress\" and record the failures in the ticket description.
+8. Do not change the ticket status; the wrapper script will move it to \"in-review\" after you exit successfully.
+9. If checks fail, leave the ticket \"in_progress\" and record the failures in the ticket description.
 10. Do not work on more than one ticket during this run.
 11. Your final response must include the ticket ID, status, summary, checks, and the exact text appended to the ticket.
 12. Treat the Copilot AI credit limit as a hard work budget for this run. If the remaining budget is insufficient to safely finish the ticket, do not start another ticket; leave the current ticket status unchanged or restore it to \"todo\" and explain why.
@@ -127,6 +127,13 @@ if [[ -s "$USAGE_FILE" ]]; then
   ' "$USAGE_FILE" 2>/dev/null || true)"
   if [[ -n "$AI_CREDITS_USED" ]]; then
     "$REPO/taskboard" ticket record-ai-credits "$TICKET_ID" --credits "$AI_CREDITS_USED" >> "$LOG_DIR/$(date +%F).log" 2>&1 || true
+  fi
+fi
+
+if (( COPILOT_EXIT_CODE == 0 )); then
+  if ! "$REPO/taskboard" ticket move "$TICKET_ID" --status in-review >> "$LOG_DIR/$(date +%F).log" 2>&1; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - Failed to move ticket $TICKET_ID to in-review." >> "$LOG_DIR/$(date +%F).log"
+    COPILOT_EXIT_CODE=1
   fi
 fi
 

@@ -532,7 +532,7 @@ func (s *Store) DeleteTicket(id string) error {
 }
 
 func (s *Store) GetBoard(projectID string) (*models.Board, error) {
-	statuses := []string{"backlog", "todo", "in_progress", "done"}
+	statuses := []string{"backlog", "todo", "in_progress", "in-review", "done"}
 	board := &models.Board{
 		ProjectID: projectID,
 		Columns:   make([]models.Column, len(statuses)),

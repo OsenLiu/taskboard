@@ -42,7 +42,7 @@ func ticketCommands() *cobra.Command {
 		},
 	}
 	listCmd.Flags().StringVar(&projectID, "project", "", "filter by project ID")
-	listCmd.Flags().StringVar(&status, "status", "", "filter by status (backlog|todo|in_progress|done)")
+	listCmd.Flags().StringVar(&status, "status", "", "filter by status (backlog|todo|in_progress|in-review|done)")
 	listCmd.Flags().StringVar(&priority, "priority", "", "filter by priority (urgent|high|medium|low)")
 
 	nextCmd := &cobra.Command{
@@ -131,7 +131,7 @@ func ticketCommands() *cobra.Command {
 			return nil
 		},
 	}
-	moveCmd.Flags().StringVar(&moveStatus, "status", "", "target status (backlog|todo|in_progress|done; required)")
+	moveCmd.Flags().StringVar(&moveStatus, "status", "", "target status (backlog|todo|in_progress|in-review|done; required)")
 	moveCmd.MarkFlagRequired("status")
 
 	var aiCredits int
