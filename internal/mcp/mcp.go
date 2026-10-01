@@ -248,9 +248,16 @@ func (s *MCPServer) callTool(name string, args json.RawMessage) (any, error) {
 
 	case "get_ticket":
 		var a struct {
-			ID string `json:"id"`
+			ID       string `json:"id"`
+			TicketID string `json:"ticketId"`
 		}
 		json.Unmarshal(args, &a)
+		if a.ID == "" {
+			a.ID = a.TicketID
+		}
+		if a.ID == "" {
+			return nil, fmt.Errorf("id is required (use the ticket ID, not the display key such as DUVEL-9)")
+		}
 		t, err := s.store.GetTicket(a.ID)
 		if t == nil && err == nil {
 			return nil, fmt.Errorf("ticket not found")
@@ -474,7 +481,7 @@ func (s *MCPServer) toolDefinitions() []toolDef {
 		},
 		{
 			Name:        "get_ticket",
-			Description: "Get detailed ticket information including subtasks, labels, and dependencies",
+			Description: "Get detailed ticket information including subtasks, labels, and dependencies. Pass the internal ticket ID in the id field (ticketId is accepted as a compatibility alias); display keys such as DUVEL-9 are not IDs.",
 			InputSchema: jsonSchema{
 				Type:       "object",
 				Properties: map[string]schemaProp{"id": {Type: "string", Description: "Ticket ID"}},
