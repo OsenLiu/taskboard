@@ -85,6 +85,12 @@ chmod +x scripts/taskboard-agent
 crontab -e
 ```
 
+For example, to run the agent every 15 minutes:
+
+```cron
+*/15 * * * * PATH=$HOME/.local/bin:/usr/bin:/bin TASKBOARD_REPO=$HOME/Work/taskboard flock -n /tmp/taskboard-agent.lock timeout 2h $HOME/.local/bin/taskboard-agent
+```
+
 For an installed copy, set `TASKBOARD_REPO` to the checkout containing the
 Taskboard binary. The script uses the saved AI settings and writes logs to
 `~/.local/state/taskboard-agent`.
