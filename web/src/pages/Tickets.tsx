@@ -8,23 +8,29 @@ import {
   ArrowDown,
   Calendar,
   Ticket as TicketIcon,
+  Search,
+  X,
 } from "lucide-react";
 import { api, type Ticket, type Project, type Team } from "../api/client";
 import TicketPanel from "../components/TicketPanel";
 import CreateTicketModal from "../components/CreateTicketModal";
 
-const STATUSES = ["todo", "in_progress", "done"];
+const STATUSES = ["backlog", "todo", "in_progress", "in-review", "done"];
 const PRIORITIES = ["urgent", "high", "medium", "low"];
 
 const STATUS_STYLES: Record<string, string> = {
+  backlog: "bg-amber-500/20 text-amber-400",
   todo: "bg-slate-500/20 text-slate-400",
   in_progress: "bg-blue-500/20 text-blue-400",
+  "in-review": "bg-rose-500/20 text-rose-400",
   done: "bg-green-500/20 text-green-400",
 };
 
 const STATUS_LABELS: Record<string, string> = {
+  backlog: "Backlog",
   todo: "Todo",
   in_progress: "In Progress",
+  "in-review": "In Review",
   done: "Done",
 };
 
@@ -72,11 +78,12 @@ export default function Tickets() {
   const [filterProject, setFilterProject] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterPriority, setFilterPriority] = useState("");
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     try {
       const [t, p, tm] = await Promise.all([
-        api.tickets.list(),
+        api.tickets.list(search),
         api.projects.list(),
         api.teams.list(),
       ]);
@@ -89,10 +96,18 @@ export default function Tickets() {
       setTeams([]);
     }
     setLoading(false);
-  }, []);
+  }, [search]);
 
   useEffect(() => {
-    load();
+    let active = true;
+    const run = async () => {
+      await load();
+      if (active) setLoading(false);
+    };
+    void run();
+    return () => {
+      active = false;
+    };
   }, [load]);
 
   const filtered = tickets.filter((t) => {
@@ -131,7 +146,28 @@ export default function Tickets() {
         </button>
       </header>
 
-      <div className="shrink-0 flex items-center gap-3 px-6 py-3 border-b border-slate-800/50">
+      <div className="shrink-0 flex flex-wrap items-center gap-3 px-6 py-3 border-b border-slate-800/50">
+        <div className="relative min-w-0 basis-full sm:min-w-56 sm:flex-1">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tickets..."
+            aria-label="Search tickets"
+            className="w-full bg-slate-800 text-sm text-slate-300 placeholder-slate-600 rounded-md border border-slate-700 pl-8 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Clear ticket search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <select
           value={filterProject}
           onChange={(e) => setFilterProject(e.target.value)}
@@ -181,7 +217,11 @@ export default function Tickets() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-slate-600 space-y-3">
             <TicketIcon className="w-10 h-10 text-slate-700" />
-            <p className="text-sm">No tickets found</p>
+            <p className="text-sm">
+              {search || filterProject || filterStatus || filterPriority
+                ? "No tickets match your filters"
+                : "No tickets found"}
+            </p>
           </div>
         ) : (
           <table className="w-full">

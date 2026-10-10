@@ -31,3 +31,5 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.github/copilot-instructions.md
+.github/hooks/rtk-rewrite.json

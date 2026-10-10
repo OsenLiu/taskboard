@@ -9,6 +9,7 @@ type Project struct {
 	Description string    `json:"description,omitempty"`
 	Icon        string    `json:"icon,omitempty"`
 	Color       string    `json:"color,omitempty"`
+	Folder      string    `json:"folder,omitempty"`
 	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
@@ -22,18 +23,21 @@ type Team struct {
 }
 
 type Ticket struct {
-	ID          string     `json:"id"`
-	ProjectID   string     `json:"projectId"`
-	TeamID      *string    `json:"teamId,omitempty"`
-	Number      int        `json:"number"`
-	Title       string     `json:"title"`
-	Description string     `json:"description,omitempty"`
-	Status      string     `json:"status"`
-	Priority    string     `json:"priority"`
-	DueDate     *time.Time `json:"dueDate,omitempty"`
-	Position    float64    `json:"position"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
+	ID            string     `json:"id"`
+	ProjectID     string     `json:"projectId"`
+	TeamID        *string    `json:"teamId,omitempty"`
+	Number        int        `json:"number"`
+	Title         string     `json:"title"`
+	Description   string     `json:"description,omitempty"`
+	Folder        string     `json:"folder,omitempty"`
+	Status        string     `json:"status"`
+	Priority      string     `json:"priority"`
+	AIModel       *string    `json:"aiModel,omitempty"`
+	AICreditsUsed *int       `json:"aiCreditsUsed,omitempty"`
+	DueDate       *time.Time `json:"dueDate,omitempty"`
+	Position      float64    `json:"position"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
 
 	// Populated fields (not stored directly)
 	ProjectPrefix string    `json:"projectPrefix,omitempty"`
@@ -106,6 +110,7 @@ type CreateProjectRequest struct {
 	Description string `json:"description,omitempty"`
 	Icon        string `json:"icon,omitempty"`
 	Color       string `json:"color,omitempty"`
+	Folder      string `json:"folder,omitempty"`
 }
 
 type UpdateProjectRequest struct {
@@ -114,6 +119,7 @@ type UpdateProjectRequest struct {
 	Description *string `json:"description,omitempty"`
 	Icon        *string `json:"icon,omitempty"`
 	Color       *string `json:"color,omitempty"`
+	Folder      *string `json:"folder,omitempty"`
 	Status      *string `json:"status,omitempty"`
 }
 
@@ -132,8 +138,10 @@ type CreateTicketRequest struct {
 	TeamID      *string  `json:"teamId,omitempty"`
 	Title       string   `json:"title"`
 	Description string   `json:"description,omitempty"`
+	Folder      string   `json:"folder,omitempty"`
 	Status      string   `json:"status,omitempty"`
 	Priority    string   `json:"priority,omitempty"`
+	AIModel     *string  `json:"aiModel,omitempty"`
 	DueDate     *string  `json:"dueDate,omitempty"`
 	Labels      []string `json:"labels,omitempty"`
 	BlockedBy   []string `json:"blockedBy,omitempty"`
@@ -143,8 +151,10 @@ type UpdateTicketRequest struct {
 	TeamID      *string  `json:"teamId,omitempty"`
 	Title       *string  `json:"title,omitempty"`
 	Description *string  `json:"description,omitempty"`
+	Folder      *string  `json:"folder,omitempty"`
 	Status      *string  `json:"status,omitempty"`
 	Priority    *string  `json:"priority,omitempty"`
+	AIModel     *string  `json:"aiModel,omitempty"`
 	DueDate     *string  `json:"dueDate,omitempty"`
 	Position    *float64 `json:"position,omitempty"`
 	Labels      []string `json:"labels,omitempty"`
@@ -175,4 +185,14 @@ type TicketFilter struct {
 	TeamID    string
 	Status    string
 	Priority  string
+	Search    string
+}
+
+type Setting struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type UpdateSettingRequest struct {
+	Value string `json:"value"`
 }

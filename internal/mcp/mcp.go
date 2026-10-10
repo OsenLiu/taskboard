@@ -248,9 +248,16 @@ func (s *MCPServer) callTool(name string, args json.RawMessage) (any, error) {
 
 	case "get_ticket":
 		var a struct {
-			ID string `json:"id"`
+			ID       string `json:"id"`
+			TicketID string `json:"ticketId"`
 		}
 		json.Unmarshal(args, &a)
+		if a.ID == "" {
+			a.ID = a.TicketID
+		}
+		if a.ID == "" {
+			return nil, fmt.Errorf("id is required (use the ticket ID, not the display key such as DUVEL-9)")
+		}
 		t, err := s.store.GetTicket(a.ID)
 		if t == nil && err == nil {
 			return nil, fmt.Errorf("ticket not found")
@@ -467,14 +474,14 @@ func (s *MCPServer) toolDefinitions() []toolDef {
 				Properties: map[string]schemaProp{
 					"projectId": {Type: "string", Description: "Filter by project ID"},
 					"teamId":    {Type: "string", Description: "Filter by team ID"},
-					"status":    {Type: "string", Description: "Filter by status", Enum: []string{"todo", "in_progress", "done"}},
+					"status":    {Type: "string", Description: "Filter by status", Enum: []string{"backlog", "todo", "in_progress", "in-review", "done"}},
 					"priority":  {Type: "string", Description: "Filter by priority", Enum: []string{"urgent", "high", "medium", "low"}},
 				},
 			},
 		},
 		{
 			Name:        "get_ticket",
-			Description: "Get detailed ticket information including subtasks, labels, and dependencies",
+			Description: "Get detailed ticket information including subtasks, labels, and dependencies. Pass the internal ticket ID in the id field (ticketId is accepted as a compatibility alias); display keys such as DUVEL-9 are not IDs.",
 			InputSchema: jsonSchema{
 				Type:       "object",
 				Properties: map[string]schemaProp{"id": {Type: "string", Description: "Ticket ID"}},
@@ -493,7 +500,7 @@ func (s *MCPServer) toolDefinitions() []toolDef {
 					"projectId":   {Type: "string", Description: "Project ID"},
 					"title":       {Type: "string", Description: "Ticket title"},
 					"description": {Type: "string", Description: "Rich text description"},
-					"status":      {Type: "string", Description: "Initial status", Enum: []string{"todo", "in_progress", "done"}},
+					"status":      {Type: "string", Description: "Initial status", Enum: []string{"backlog", "todo", "in_progress", "in-review", "done"}},
 					"priority":    {Type: "string", Description: "Priority level", Enum: []string{"urgent", "high", "medium", "low"}},
 					"teamId":      {Type: "string", Description: "Team ID"},
 					"dueDate":     {Type: "string", Description: "Due date (YYYY-MM-DD)"},
@@ -510,7 +517,7 @@ func (s *MCPServer) toolDefinitions() []toolDef {
 					"id":          {Type: "string", Description: "Ticket ID"},
 					"title":       {Type: "string", Description: "Ticket title"},
 					"description": {Type: "string", Description: "Description"},
-					"status":      {Type: "string", Description: "Status", Enum: []string{"todo", "in_progress", "done"}},
+					"status":      {Type: "string", Description: "Status", Enum: []string{"backlog", "todo", "in_progress", "in-review", "done"}},
 					"priority":    {Type: "string", Description: "Priority", Enum: []string{"urgent", "high", "medium", "low"}},
 					"teamId":      {Type: "string", Description: "Team ID"},
 					"dueDate":     {Type: "string", Description: "Due date (YYYY-MM-DD)"},
@@ -525,7 +532,7 @@ func (s *MCPServer) toolDefinitions() []toolDef {
 				Type: "object",
 				Properties: map[string]schemaProp{
 					"id":     {Type: "string", Description: "Ticket ID"},
-					"status": {Type: "string", Description: "Target status", Enum: []string{"todo", "in_progress", "done"}},
+					"status": {Type: "string", Description: "Target status", Enum: []string{"backlog", "todo", "in_progress", "in-review", "done"}},
 				},
 				Required: []string{"id", "status"},
 			},
@@ -542,7 +549,7 @@ func (s *MCPServer) toolDefinitions() []toolDef {
 		// --- Board ---
 		{
 			Name:        "get_board",
-			Description: "Get full Kanban board grouped by status columns (todo, in_progress, done)",
+			Description: "Get full Kanban board grouped by status columns (backlog, todo, in_progress, in-review, done)",
 			InputSchema: jsonSchema{
 				Type: "object",
 				Properties: map[string]schemaProp{

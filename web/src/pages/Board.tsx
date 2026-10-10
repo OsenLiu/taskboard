@@ -28,15 +28,19 @@ import { api, type Ticket, type Project, type Team, type BoardColumn } from "../
 import TicketPanel from "../components/TicketPanel";
 import CreateTicketModal from "../components/CreateTicketModal";
 
-const STATUSES = ["todo", "in_progress", "done"];
+const STATUSES = ["backlog", "todo", "in_progress", "in-review", "done"];
 const STATUS_LABELS: Record<string, string> = {
+  backlog: "Backlog",
   todo: "Todo",
   in_progress: "In Progress",
+  "in-review": "In Review",
   done: "Done",
 };
 const STATUS_COLORS: Record<string, string> = {
+  backlog: "bg-amber-500",
   todo: "bg-slate-500",
   in_progress: "bg-blue-500",
+  "in-review": "bg-rose-500",
   done: "bg-green-500",
 };
 
@@ -248,6 +252,7 @@ export default function Board() {
   );
 
   const loadBoard = useCallback(async () => {
+    setLoading(true);
     try {
       const board = await api.board.get(selectedProject || undefined);
       setColumns(board.columns || []);
@@ -255,8 +260,9 @@ export default function Board() {
       setColumns(
         STATUSES.map((status) => ({ status, tickets: [] }))
       );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [selectedProject]);
 
   useEffect(() => {
@@ -265,8 +271,7 @@ export default function Board() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    loadBoard();
+    void loadBoard();
   }, [loadBoard]);
 
   const getColumnTickets = (status: string) =>

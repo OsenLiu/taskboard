@@ -104,20 +104,29 @@ export default function TerminalPanel({
   }, []);
 
   const disconnect = useCallback(() => {
-    wsRef.current?.close();
-    wsRef.current = null;
-    xtermRef.current?.dispose();
-    xtermRef.current = null;
+    const socket = wsRef.current;
+    if (socket) {
+      socket.close();
+      wsRef.current = null;
+    }
+    const terminal = xtermRef.current;
+    if (terminal) {
+      terminal.dispose();
+      xtermRef.current = null;
+    }
     fitRef.current = null;
-    setConnected(false);
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      requestAnimationFrame(() => connect());
-    } else {
-      disconnect();
+    if (!isOpen) {
+      return;
     }
+
+    const frame = requestAnimationFrame(() => connect());
+    return () => {
+      cancelAnimationFrame(frame);
+      disconnect();
+    };
   }, [isOpen, connect, disconnect]);
 
   useEffect(() => {

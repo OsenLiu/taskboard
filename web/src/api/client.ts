@@ -5,6 +5,7 @@ export interface Project {
   description: string;
   icon: string;
   color: string;
+  folder?: string;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -38,8 +39,11 @@ export interface Ticket {
   number: number;
   title: string;
   description: string;
+  folder?: string;
   status: string;
   priority: string;
+  aiModel?: string;
+  aiCreditsUsed?: number;
   dueDate?: string;
   position: number;
   createdAt: string;
@@ -58,6 +62,21 @@ export interface BoardColumn {
 export interface Board {
   projectId: string;
   columns: BoardColumn[];
+}
+
+export interface Setting {
+  key: string;
+  value: string;
+}
+
+export interface AIModelCatalog {
+  models: AIModelOption[];
+  current: string;
+}
+
+export interface AIModelOption {
+  id: string;
+  name: string;
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -109,7 +128,12 @@ export const api = {
   },
 
   tickets: {
-    list: () => request<Ticket[]>("/api/tickets"),
+    list: (search?: string) => {
+      const params = new URLSearchParams();
+      if (search?.trim()) params.set("search", search.trim());
+      const query = params.toString();
+      return request<Ticket[]>(`/api/tickets${query ? `?${query}` : ""}`);
+    },
     get: (id: string) => request<Ticket>(`/api/tickets/${id}`),
     create: (data: Partial<Ticket>) =>
       request<Ticket>("/api/tickets", {
@@ -161,5 +185,27 @@ export const api = {
   board: {
     get: (projectId?: string) =>
       request<Board>(`/api/board${projectId ? `?projectId=${projectId}` : ""}`),
+  },
+
+  settings: {
+    getAICreditLimit: () => request<Setting>("/api/settings/ai-credit-limit"),
+    updateAICreditLimit: (value: number) =>
+      request<Setting>("/api/settings/ai-credit-limit", {
+        method: "PUT",
+        body: JSON.stringify({ value: String(value) }),
+      }),
+    getAIModel: () => request<Setting>("/api/settings/ai-model"),
+    listAIModels: () => request<AIModelCatalog>("/api/settings/ai-models"),
+    updateAIModel: (value: string) =>
+      request<Setting>("/api/settings/ai-model", {
+        method: "PUT",
+        body: JSON.stringify({ value }),
+      }),
+  },
+
+  logs: {
+    list: () => request<{ dates: string[] }>("/api/logs"),
+    get: (date: string) =>
+      request<{ date: string; content: string }>(`/api/logs/${encodeURIComponent(date)}`),
   },
 };

@@ -66,6 +66,35 @@ taskboard team create "Backend"
 taskboard team list
 ```
 
+### AI Automation Settings
+
+Open **Settings** in the web UI to set the daily AI credit limit and Copilot model used by the scheduled Taskboard agent. The minimum is 30 credits. Use `auto` or a model identifier accepted by Copilot CLI. The agent reads these persisted settings before starting its daily Copilot session.
+
+The value can also be inspected from the CLI:
+
+```bash
+taskboard settings get ai_credit_limit
+taskboard settings get ai_model
+```
+
+To run the scheduled agent from a checkout, make the template executable and
+add it to cron:
+
+```bash
+chmod +x scripts/taskboard-agent
+crontab -e
+```
+
+For example, to run the agent every 15 minutes:
+
+```cron
+*/15 * * * * PATH=$HOME/.local/bin:/usr/bin:/bin TASKBOARD_REPO=$HOME/Work/taskboard flock -n /tmp/taskboard-agent.lock timeout 2h $HOME/.local/bin/taskboard-agent
+```
+
+For an installed copy, set `TASKBOARD_REPO` to the checkout containing the
+Taskboard binary. The script uses the saved AI settings and writes logs to
+`~/.local/state/taskboard-agent`.
+
 ### MCP Server (for AI assistants)
 
 ```bash

@@ -2,13 +2,16 @@ import { useState } from "react";
 import { X, Trash2, CheckCircle2, Circle, Pencil, Eye } from "lucide-react";
 import Markdown from "react-markdown";
 import { api, type Ticket, type Project, type Team, type Subtask } from "../api/client";
+import { useAIModels } from "../hooks/useAIModels";
 
-const STATUSES = ["todo", "in_progress", "done"];
+const STATUSES = ["backlog", "todo", "in_progress", "in-review", "done"];
 const PRIORITIES = ["urgent", "high", "medium", "low"];
 
 const STATUS_LABELS: Record<string, string> = {
+  backlog: "Backlog",
   todo: "Todo",
   in_progress: "In Progress",
+  "in-review": "In Review",
   done: "Done",
 };
 
@@ -27,10 +30,13 @@ export default function TicketPanel({
   onUpdate: (id: string, data: Partial<Ticket>) => void;
   onDelete: (id: string) => void;
 }) {
+  const aiModels = useAIModels();
   const [title, setTitle] = useState(ticket.title);
   const [description, setDescription] = useState(ticket.description);
+  const [folder, setFolder] = useState(ticket.folder || "");
   const [status, setStatus] = useState(ticket.status);
   const [priority, setPriority] = useState(ticket.priority);
+  const [aiModel, setAIModel] = useState(ticket.aiModel || "");
   const [dueDate, setDueDate] = useState(ticket.dueDate || "");
   const [teamId, setTeamId] = useState(ticket.teamId || "");
   const [subtasks, setSubtasks] = useState<Subtask[]>(ticket.subtasks || []);
@@ -44,8 +50,10 @@ export default function TicketPanel({
     onUpdate(ticket.id, {
       title,
       description,
+      folder: folder.trim() || undefined,
       status,
       priority,
+      aiModel: aiModel.trim(),
       dueDate: dueDate || undefined,
       teamId: teamId || undefined,
     });
@@ -240,6 +248,53 @@ export default function TicketPanel({
                 {projects.find((p) => p.id === ticket.projectId)?.name || "—"}
               </div>
             </div>
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                Folder
+              </label>
+              <input
+                value={folder}
+                onChange={(e) => {
+                  setFolder(e.target.value);
+                  markDirty();
+                }}
+                placeholder="Optional working folder override"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                AI Model
+              </label>
+              <select
+                value={aiModel}
+                onChange={(e) => {
+                  setAIModel(e.target.value);
+                  markDirty();
+                }}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Use global setting</option>
+                {aiModel && !aiModels.some((option) => option.id === aiModel) && (
+                  <option value={aiModel}>{aiModel} (saved)</option>
+                )}
+                {aiModels.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {ticket.aiCreditsUsed !== undefined && (
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">
+                  AI Credits Used
+                </label>
+                <div className="text-sm text-slate-400 px-3 py-2">
+                  {ticket.aiCreditsUsed}
+                </div>
+              </div>
+            )}
           </div>
 
           {dirty && (

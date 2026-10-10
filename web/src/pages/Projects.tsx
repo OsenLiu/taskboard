@@ -29,12 +29,13 @@ function ProjectModal({
   const [description, setDescription] = useState(project?.description || "");
   const [icon, setIcon] = useState(project?.icon || "📋");
   const [color, setColor] = useState(project?.color || DEFAULT_COLORS[0]);
+  const [folder, setFolder] = useState(project?.folder || "");
   const [status, setStatus] = useState(project?.status || "active");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !prefix.trim()) return;
-    onSave({ name, prefix: prefix.toUpperCase(), description, icon, color, status });
+    onSave({ name, prefix: prefix.toUpperCase(), description, icon, color, folder, status });
   };
 
   return (
@@ -127,6 +128,21 @@ function ProjectModal({
 
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              Project folder
+            </label>
+            <input
+              value={folder}
+              onChange={(e) => setFolder(e.target.value)}
+              placeholder="/path/to/project"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Default working folder for tickets in this project.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1.5">
               Color
             </label>
             <div className="flex gap-2">
@@ -194,7 +210,15 @@ export default function Projects() {
   };
 
   useEffect(() => {
-    load();
+    let active = true;
+    const run = async () => {
+      await load();
+      if (active) setLoading(false);
+    };
+    void run();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleCreate = async (data: Partial<Project>) => {
@@ -293,7 +317,7 @@ export default function Projects() {
                     </button>
                   </div>
                 )}
-                <div className="mt-1 flex items-center gap-2">
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-mono text-slate-500">
                     {project.prefix}
                   </span>
@@ -305,6 +329,11 @@ export default function Projects() {
                     {project.status}
                   </span>
                 </div>
+                {project.folder && (
+                  <div className="mt-2 text-[11px] text-slate-400 break-all font-mono">
+                    {project.folder}
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -4,6 +4,8 @@ import Board from "./pages/Board";
 import Projects from "./pages/Projects";
 import Teams from "./pages/Teams";
 import Tickets from "./pages/Tickets";
+import Logs from "./pages/Logs";
+import Settings from "./pages/Settings";
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
           <Route path="projects" element={<Projects />} />
           <Route path="teams" element={<Teams />} />
           <Route path="tickets" element={<Tickets />} />
+          <Route path="logs" element={<Logs />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>
